@@ -15,6 +15,7 @@ bool pixel_in_circle(int2 location, int2 center, int radius){
 }
 
 bool is_pixle_in_circle_boundary(int2 location, int2 center, int radius, float boundary_width){
+    // this function not in use ...
     float2 distance_vector = convert_float2(location - center);
     float distance = length(distance_vector);
     float suqared_distance = distance * distance;
@@ -39,8 +40,8 @@ __kernel void render_particles(
     float2 center_pixel_float = (float2)(((float)image_shape.x) * particle.position.x , ((float)image_shape.y) * particle.position.y);
     int2 center_pixel = (int2)(round(center_pixel_float.x), round(center_pixel_float.y));
 
-    int2 x_pixel_range = (int2)(center_pixel.x - particle.radius, center_pixel.x + particle.radius);
-    int2 y_pixel_range = (int2)(center_pixel.y - particle.radius, center_pixel.y + particle.radius);
+    int2 x_pixel_range = (int2)(center_pixel.x - particle.radius - 3, center_pixel.x + particle.radius + 3);
+    int2 y_pixel_range = (int2)(center_pixel.y - particle.radius - 3, center_pixel.y + particle.radius + 3);
     for(
         int x = x_pixel_range.x; x < x_pixel_range.y; x++
     ){
@@ -52,11 +53,6 @@ __kernel void render_particles(
                     uint4 color = get_particle_color_as_uint4(particle);
                     write_imageui(output_image, (int2)(x,y), color);
                 }
-                // else if (is_pixle_in_circle_boundary(pixel_location,center_pixel, particle.radius, 4.0f)){
-                //     uint4 color = get_particle_color_as_uint4(particle);
-                //     color.w = 100;
-                //     write_imageui(output_image, (int2)(x,y), color);
-                // }
             }
         }
     }
