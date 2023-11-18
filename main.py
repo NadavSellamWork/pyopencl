@@ -31,7 +31,7 @@ class App(AppTemplate):
 
         self.num_particles = 100
         particle_locations = np.random.rand(self.num_particles, 2).astype(np.float32)
-        particle_radiuses = np.ones((self.num_particles), dtype=np.int32) * 5
+        particle_radiuses = np.ones((self.num_particles), dtype=np.int32) * 15
         particles_data = np.empty(self.num_particles, dtype=[('position', np.float32, 2), ('radius', np.int32), ("color", np.int32)])
         particles_data["position"] = particle_locations
         particles_data["radius"] = particle_radiuses
@@ -49,7 +49,7 @@ class App(AppTemplate):
 
     
     def load_shader(self):
-        shader_code = read_file("cl_shaders/particles.cl")
+        shader_code = read_file("cl_shaders/render_particles.cl")
         self.program = cl.Program(self.ctx, shader_code).build()
     
     def update(self):
