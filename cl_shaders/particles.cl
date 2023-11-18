@@ -1,12 +1,8 @@
-__kernel void update_image(
-    __read_only image2d_t input_image, __write_only image2d_t output_image
-){
-    int2 coord = (int2)(get_global_id(0), get_global_id(1));
-    uint4 pixel = read_imageui(input_image, coord);
-    uint4 next_pixel = (uint4)((pixel.x + 1 ) % 255, pixel.y, pixel.z, pixel.w);
-    write_imageui(output_image, coord, next_pixel);
-}
-
+typedef struct {
+    float2 position;
+    int radius;
+    uint color;
+} Particle;
 
 bool pixel_in_image(int x,int y, int x_range, int y_range){
     return x >= 0 && x < x_range && y >= 0 && y < y_range;
@@ -18,11 +14,12 @@ bool pixel_in_circle(int x, int y, int2 center, int radius){
     return x_dist * x_dist + y_dist * y_dist < radius * radius;
 }
 
-typedef struct {
-    float2 position;
-    int radius;
-    int color;
-} Particle;
+uint4 get_particle_color_as_uint4(Particle particle){
+    uint color = particle.color;
+    uchar4 split_color = vload4(0, (uchar*)(&color));
+    int4 new_color = convert_int4(split_color);
+    return new_color;
+}
 
 __kernel void render_particles(
     __global Particle* particles, __write_only image2d_t output_image
@@ -40,7 +37,8 @@ __kernel void render_particles(
     ){
         for(int y = y_pixel_range.x; y < y_pixel_range.y; y++){
             if(pixel_in_image(x,y,image_shape.x, image_shape.y) && pixel_in_circle(x,y,center_pixel, particle.radius)){
-                write_imageui(output_image, (int2)(x,y), (uint4)(255, 255,255,255));
+                uint4 color = get_particle_color_as_uint4(particle);
+                write_imageui(output_image, (int2)(x,y), color);
             }
         }
     }

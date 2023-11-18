@@ -35,7 +35,7 @@ class App(AppTemplate):
         particles_data = np.empty(self.num_particles, dtype=[('position', np.float32, 2), ('radius', np.int32), ("color", np.int32)])
         particles_data["position"] = particle_locations
         particles_data["radius"] = particle_radiuses
-        particles_data["color"] = np.ones((self.num_particles), dtype=np.int32) * 100
+        particles_data["color"] = np.random.randint(0, 2 ** 32 - 1, (self.num_particles), dtype=np.uint32)
         # notice ! that the compiler will not allow for a struct that that size is not a multiple of 8 (for access speeds)
         # so there will be padding, meaning that if the "color" attribute would not have been there, the compiler will pad the struct to be 16 bytes anyway
         # and will read the array wrong, because it will use a stride of 16.
