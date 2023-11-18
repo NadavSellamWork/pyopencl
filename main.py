@@ -32,16 +32,20 @@ class App(AppTemplate):
         self.num_particles = 100
         particle_locations = np.random.rand(self.num_particles, 2).astype(np.float32)
         particle_radiuses = np.ones((self.num_particles), dtype=np.int32) * 15
-        particles_data = np.empty(self.num_particles, dtype=[('position', np.float32, 2), ('radius', np.int32), ("color", np.int32)])
-        particles_data["position"] = particle_locations
-        particles_data["radius"] = particle_radiuses
-        particles_data["color"] = np.random.randint(0, 2 ** 32 - 1, (self.num_particles), dtype=np.uint32)
+        particle_colors = np.random.randint(0, 2 ** 32 - 1, (self.num_particles), dtype=np.uint32)
+        self.particles_data = self.create_particles_data(particle_locations, particle_radiuses, particle_colors)
+        self.particles_buffer = cl.Buffer(self.ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=self.particles_data)
+    
+    @staticmethod
+    def create_particles_data(particle_locations, particle_radiuses, particle_colors):
         # notice ! that the compiler will not allow for a struct that that size is not a multiple of 8 (for access speeds)
         # so there will be padding, meaning that if the "color" attribute would not have been there, the compiler will pad the struct to be 16 bytes anyway
         # and will read the array wrong, because it will use a stride of 16.
-        self.particles_data = particles_data
-
-        self.particles_buffer = cl.Buffer(self.ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=particles_data)
+        particles_data = np.empty(particle_locations.shape[0], dtype=[('position', np.float32, 2), ('radius', np.int32), ("color", np.int32)])
+        particles_data["position"] = particle_locations
+        particles_data["radius"] = particle_radiuses
+        particles_data["color"] = particle_colors
+        return particles_data
     
     def render_particles(self):
         kernel = self.program.render_particles
@@ -53,6 +57,11 @@ class App(AppTemplate):
         self.program = cl.Program(self.ctx, shader_code).build()
     
     def update(self):
+        particle_locations = np.random.rand(self.num_particles, 2).astype(np.float32)
+        particle_radiuses = np.ones((self.num_particles), dtype=np.int32) * 15
+        particle_colors = np.random.randint(0, 2 ** 32 - 1, (self.num_particles), dtype=np.uint32)
+        self.particles_data = self.create_particles_data(particle_locations, particle_radiuses, particle_colors)
+        cl.enqueue_copy(self.queue, self.particles_buffer,self.particles_data).wait()
         self.render_particles()
         cl.enqueue_copy(self.queue, self.cl_current_image_buffer,self.cl_next_image_buffer, src_origin=(0, 0),dest_origin=(0,0), region=(self.screenWidth, self.screenHeight)).wait()
    
