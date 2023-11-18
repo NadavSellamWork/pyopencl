@@ -24,18 +24,36 @@ class App(AppTemplate):
         data_1 = data_1.view(np.int32).squeeze()
 
 
-        data_2 = (np.zeros((self.screenWidth, self.screenHeight, 4), dtype=np.uint8) + 2).view(np.int32).squeeze()
         self.cl_current_image_buffer = cl.Image(self.ctx, cl.mem_flags.READ_ONLY | cl.mem_flags.COPY_HOST_PTR, image_format, hostbuf=data_1)
-        self.cl_next_image_buffer = cl.Image(self.ctx, cl.mem_flags.READ_WRITE | cl.mem_flags.COPY_HOST_PTR, image_format, hostbuf=data_2)
+        self.cl_next_image_buffer = cl.Image(self.ctx, cl.mem_flags.READ_WRITE, image_format, shape=(self.screenWidth, self.screenHeight))
         self.program = None
         self.load_shader()
+
+        self.num_particles = 100
+        particle_locations = np.random.rand(self.num_particles, 2).astype(np.float32)
+        particle_radiuses = np.ones((self.num_particles), dtype=np.int32) * 5
+        particles_data = np.empty(self.num_particles, dtype=[('position', np.float32, 2), ('radius', np.int32), ("color", np.int32)])
+        particles_data["position"] = particle_locations
+        particles_data["radius"] = particle_radiuses
+        particles_data["color"] = np.ones((self.num_particles), dtype=np.int32) * 100
+        # notice ! that the compiler will not allow for a struct that that size is not a multiple of 8 (for access speeds)
+        # so there will be padding, meaning that if the "color" attribute would not have been there, the compiler will pad the struct to be 16 bytes anyway
+        # and will read the array wrong, because it will use a stride of 16.
+        self.particles_data = particles_data
+
+        self.particles_buffer = cl.Buffer(self.ctx, mf.READ_WRITE | mf.COPY_HOST_PTR, hostbuf=particles_data)
+    
+    def render_particles(self):
+        kernel = self.program.render_particles
+        kernel(self.queue, (self.num_particles, ), None, self.particles_buffer, self.cl_next_image_buffer)
+
     
     def load_shader(self):
-        shader_code = read_file("cl_shaders/simple_image_manipulation.cl")
+        shader_code = read_file("cl_shaders/particles.cl")
         self.program = cl.Program(self.ctx, shader_code).build()
     
     def update(self):
-        self.program.update_image(self.queue, (self.screenWidth, self.screenHeight), None, self.cl_current_image_buffer, self.cl_next_image_buffer)
+        self.render_particles()
         cl.enqueue_copy(self.queue, self.cl_current_image_buffer,self.cl_next_image_buffer, src_origin=(0, 0),dest_origin=(0,0), region=(self.screenWidth, self.screenHeight)).wait()
    
     def mainLoop(self):
